@@ -1,0 +1,16 @@
+# Core dependencies (Python 3.12+ compatible)
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Machine Learning
+tensorflow>=2.16.1
+scikit-learn>=1.4.0
+
+# NLP e análise de sentimento
+requests>=2.31.0
+
+# Utilitários
+python-dotenv>=1.0.0
+
+# NewsAPI (opcional - para coleta de notícias)
+newsapi-python>=0.2.7

@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Ambientes virtuais
+venv/
+env/
+ENV/
+.venv
+docker-compose.yml
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Variáveis de ambiente
+.env
+.env.local
+
+# Dados
+*.csv
+!requirements.txt
+
+# Modelos treinados
+*.keras
+*.h5
+*.pkl
+*.joblib
+
+# Cache
+sentiment_cache.json
+*.log
+
+# Outputs
+dataset_*_normalizado*.csv
+predictions.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# TensorFlow
+*.pb
+checkpoints/
+logs/
