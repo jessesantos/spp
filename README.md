@@ -1,6 +1,6 @@
 # SPP - Sistema de Predição Preços
 
-![Diagrama do sistema](https://codde.dev/spp.png 'Arquitetura do Sistema')
+![Diagrama do sistema](https://codde.dev/spp_logo.png 'Arquitetura do Sistema')
 
 É uma plataforma de análise preditiva que combina modelos de séries temporais (LSTM) com análise de sentimento de notícias financeiras para antecipar movimentos de mercado e variações no preço de ações.
 
