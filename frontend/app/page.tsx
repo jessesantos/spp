@@ -1,13 +1,31 @@
 import type { JSX } from "react";
 import Link from "next/link";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import {
+  Alert01Icon,
+  ArchiveIcon,
+  ArrowRight01Icon,
+  Book02Icon,
+  BrainIcon,
+  Clock01Icon,
+  ExchangeDollarIcon,
+  Globe02Icon,
+  Settings02Icon,
+  Target03Icon,
+  WaveSquareIcon,
+} from "@hugeicons/core-free-icons";
 import { AppHeader } from "@/components/AppHeader";
+import { LinkSpinner, LinkTopProgress } from "@/components/NavPending";
 import {
   api,
   type MultiHorizonResponse,
   type TickerInfo,
 } from "@/lib/api";
 
-export const dynamic = "force-dynamic";
+// ISR com revalidacao curta: evita re-fetch sincrono em cada clique
+// mantendo dados razoavelmente frescos. Usuario pode forcar via
+// RefreshPredictionsButton no dashboard.
+export const revalidate = 60;
 
 interface TickerPreview {
   info: TickerInfo;
@@ -60,33 +78,41 @@ export default async function Home(): Promise<JSX.Element> {
             <div className="lg:col-span-3">
               <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-300">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                Análise preditiva em tempo real
+                v3.1 · motor preditivo multi-sinal
               </span>
               <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
                 Previsões da{" "}
                 <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
                   B3
                 </span>{" "}
-                com IA e sentimento global
+                com IA, mercados de previsão e teoria econômica
               </h1>
-              <p className="mt-5 max-w-xl text-base text-neutral-400 sm:text-lg">
-                Rede LSTM treinada em 1 ano de histórico, cruzada com notícias
-                nacionais e feeds internacionais (Reuters, BBC, FT, Bloomberg)
-                para capturar política monetária, geopolítica e commodities.
+              <p className="mt-5 max-w-xl text-base text-neutral-300 sm:text-lg">
+                LSTM treinada em 3 anos de histórico, cruzada com sentimento
+                Claude (Economia moderna + value investing via SKILL), sinais
+                de Kalshi e Polymarket, volatilidade condicional EWMA e
+                analisador de impacto cambial BRL/USD.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href={previews[0]?.info.ticker ? `/dashboard/${previews[0].info.ticker}` : "#tickers"}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400"
+                  className="group inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition hover:bg-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950"
                 >
                   Explorar primeiro ticker
-                  <span aria-hidden>→</span>
+                  <LinkSpinner size={14} className="text-neutral-950" />
+                  <HugeiconsIcon
+                    icon={ArrowRight01Icon}
+                    size={18}
+                    strokeWidth={2}
+                    className="transition-transform group-hover:translate-x-0.5"
+                    aria-hidden
+                  />
                 </Link>
                 <a
                   href="http://localhost:8000/docs"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-lg border border-neutral-700 px-4 py-2 text-sm font-semibold text-neutral-200 transition hover:border-emerald-500/50 hover:text-emerald-300"
+                  className="inline-flex items-center gap-2 rounded-lg border border-neutral-700 px-4 py-2 text-sm font-semibold text-neutral-200 transition hover:border-emerald-500/50 hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950"
                 >
                   API docs
                 </a>
@@ -108,13 +134,12 @@ export default async function Home(): Promise<JSX.Element> {
                     Variação média prevista (próximo pregão)
                   </p>
                   <p
-                    className={`mt-1 font-mono text-2xl font-bold ${
-                      averagePct > 0.1
-                        ? "text-emerald-400"
-                        : averagePct < -0.1
-                          ? "text-red-400"
-                          : "text-yellow-300"
-                    }`}
+                    className={`mt-1 font-mono text-2xl font-bold ${averagePct > 0.1
+                      ? "text-emerald-400"
+                      : averagePct < -0.1
+                        ? "text-red-400"
+                        : "text-yellow-300"
+                      }`}
                   >
                     {averagePct > 0 ? "+" : ""}
                     {averagePct.toFixed(2)}%
@@ -138,12 +163,21 @@ export default async function Home(): Promise<JSX.Element> {
             </div>
 
             {previews.length === 0 ? (
-              <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-6 text-sm text-yellow-200">
-                <p className="font-semibold">Backend indisponível</p>
-                <p className="mt-1 text-yellow-200/80">
-                  Verifique se o container <code>spp-backend</code> responde em{" "}
-                  <code>/api/tickers</code>.
-                </p>
+              <div className="flex items-start gap-3 rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-6 text-sm text-yellow-200">
+                <HugeiconsIcon
+                  icon={Alert01Icon}
+                  size={22}
+                  strokeWidth={1.75}
+                  className="mt-0.5 shrink-0 text-yellow-300"
+                  aria-hidden
+                />
+                <div>
+                  <p className="font-semibold">Backend indisponível</p>
+                  <p className="mt-1 text-yellow-200/80">
+                    Verifique se o container <code>spp-backend</code> responde em{" "}
+                    <code>/api/tickers</code>.
+                  </p>
+                </div>
               </div>
             ) : (
               <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -156,22 +190,60 @@ export default async function Home(): Promise<JSX.Element> {
             )}
           </section>
 
-          <section className="mt-16 grid gap-4 sm:grid-cols-3">
-            <FeatureCard
-              icon="⏱"
-              title="Multi-horizonte"
-              body="Previsões para amanhã, 7 dias e 30 dias, com valor em R$ e variação percentual."
-            />
-            <FeatureCard
-              icon="📊"
-              title="Histórico rastreável"
-              body="Toda previsão é persistida. O sistema compara com o preço real no vencimento e calcula o erro."
-            />
-            <FeatureCard
-              icon="🌐"
-              title="Contexto macro global"
-              body="Sentimento cruzado de notícias nacionais e feeds internacionais captura guerras, Fed, Selic e commodities."
-            />
+          <section className="mt-16">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-neutral-100">Como o motor funciona</h2>
+              <p className="mt-1 text-sm text-neutral-400">
+                Nove sinais independentes alimentam a rede LSTM por ticker
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FeatureCard
+                icon={BrainIcon}
+                title="LSTM 3 anos"
+                body="Rede 128-64-32 treinada com janela de 3 anos de OHLCV, cobrindo ciclo Copom completo e regime shifts de juros."
+              />
+              <FeatureCard
+                icon={Clock01Icon}
+                title="Multi-horizonte"
+                body="Projeções D+1, D+7 e D+30 com preço previsto, variação percentual, direção e explicação narrativa (100-500 palavras)."
+              />
+              <FeatureCard
+                icon={WaveSquareIcon}
+                title="Volatilidade condicional"
+                body="EWMA RiskMetrics (λ=0.94) como aproximação de GARCH(1,1). Captura clustering de volatilidade pós-choque."
+              />
+              <FeatureCard
+                icon={Target03Icon}
+                title="Mercados de previsão"
+                body="Kalshi e Polymarket precificam probabilidade de eventos macro (Fed cuts, recessão, Brent > $100) com capital real em jogo."
+              />
+              <FeatureCard
+                icon={ExchangeDollarIcon}
+                title="Impacto cambial BRL/USD"
+                body="Correlação empírica ticker vs USDBRL em 90 dias + heurística setorial: PETR4/VALE3 exportadoras, varejo importador."
+              />
+              <FeatureCard
+                icon={Book02Icon}
+                title="SKILL econômico no Claude"
+                body="System prompt com Escola Austríaca (Mises, Hayek), Graham/Buffett, macro (Fed, yield curve) e reflexividade (Soros)."
+              />
+              <FeatureCard
+                icon={Globe02Icon}
+                title="Sentimento cruzado"
+                body="Feeds PT-BR (InfoMoney, MoneyTimes, Estadão) + internacionais (Reuters, BBC, FT, Bloomberg, AP) com prompt-injection guard OWASP LLM01."
+              />
+              <FeatureCard
+                icon={ArchiveIcon}
+                title="Histórico rastreável"
+                body="Cada previsão persiste em Postgres. Loop asyncio reconcilia com preço real no vencimento e calcula erro percentual."
+              />
+              <FeatureCard
+                icon={Settings02Icon}
+                title="Retreino inteligente"
+                body="Celery beat sincroniza OHLCV diário às 22h BRT e retreina o LSTM aos domingos 23h com auditoria em model_runs."
+              />
+            </div>
           </section>
         </div>
       </main>
@@ -192,39 +264,40 @@ function TickerCard({
   const tone =
     pct > 0.5
       ? {
-          ring: "hover:border-emerald-500/60",
-          bar: "from-emerald-500 to-cyan-400",
-          pct: "text-emerald-400",
-        }
+        ring: "hover:border-emerald-500/60",
+        bar: "from-emerald-500 to-cyan-400",
+        pct: "text-emerald-400",
+      }
       : pct < -0.5
         ? {
-            ring: "hover:border-red-500/60",
-            bar: "from-red-500 to-orange-400",
-            pct: "text-red-400",
-          }
+          ring: "hover:border-red-500/60",
+          bar: "from-red-500 to-orange-400",
+          pct: "text-red-400",
+        }
         : {
-            ring: "hover:border-yellow-500/60",
-            bar: "from-yellow-400 to-neutral-500",
-            pct: "text-yellow-300",
-          };
+          ring: "hover:border-yellow-500/60",
+          bar: "from-yellow-400 to-neutral-500",
+          pct: "text-yellow-300",
+        };
 
   return (
     <Link
       href={`/dashboard/${info.ticker}`}
-      className={`group relative block overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5 transition hover:-translate-y-0.5 hover:bg-neutral-900 ${tone.ring}`}
+      className={`group relative block overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900/60 p-5 transition hover:-translate-y-0.5 hover:bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 ${tone.ring}`}
     >
       <div
         aria-hidden
         className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${tone.bar} opacity-0 transition-opacity group-hover:opacity-100`}
       />
+      <LinkTopProgress />
       <div className="flex items-start justify-between">
         <div>
           <p className="font-mono text-xl font-bold text-neutral-50">
             {info.ticker}
           </p>
-          <p className="mt-0.5 text-xs text-neutral-500">{info.name ?? "-"}</p>
+          <p className="mt-0.5 text-xs text-neutral-400">{info.name ?? "-"}</p>
         </div>
-        <span className="rounded-full border border-neutral-800 px-2 py-0.5 text-[10px] font-semibold text-neutral-400">
+        <span className="rounded-full border border-neutral-800 px-2 py-0.5 text-[10px] font-semibold text-neutral-300">
           {info.currency}
         </span>
       </div>
@@ -240,13 +313,13 @@ function TickerCard({
               {pct.toFixed(2)}%
             </span>
           </div>
-          <p className="mt-1 text-[10px] uppercase tracking-wider text-neutral-500">
+          <p className="mt-1 text-[10px] uppercase tracking-wider text-neutral-400">
             Amanhã · previsto {d1 ? formatMoney(d1.predicted_close) : "-"}
           </p>
 
           {w1 && (
             <div className="mt-4 flex items-center justify-between rounded-lg border border-neutral-800 bg-neutral-950/60 px-3 py-2 text-xs">
-              <span className="text-neutral-500">+7 dias</span>
+              <span className="text-neutral-400">+7 dias</span>
               <span className="font-mono font-semibold text-neutral-200">
                 {formatMoney(w1.predicted_close)}
               </span>
@@ -260,14 +333,18 @@ function TickerCard({
           )}
         </>
       ) : (
-        <p className="mt-6 text-xs text-neutral-500">Sem dados recentes.</p>
+        <p className="mt-6 text-xs text-neutral-400">Sem dados recentes.</p>
       )}
 
-      <p className="mt-5 flex items-center gap-1 text-xs font-semibold text-neutral-500 transition group-hover:text-emerald-300">
+      <p className="mt-5 flex items-center gap-1 text-xs font-semibold text-neutral-400 transition group-hover:text-emerald-300">
         Abrir dashboard
-        <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
-          →
-        </span>
+        <HugeiconsIcon
+          icon={ArrowRight01Icon}
+          size={14}
+          strokeWidth={2}
+          className="transition-transform group-hover:translate-x-0.5"
+          aria-hidden
+        />
       </p>
     </Link>
   );
@@ -303,20 +380,20 @@ function FeatureCard({
   title,
   body,
 }: {
-  icon: string;
+  icon: IconSvgElement;
   title: string;
   body: string;
 }): JSX.Element {
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-5 transition hover:border-emerald-500/30">
+    <div className="group rounded-xl border border-neutral-800 bg-neutral-900/40 p-5 transition hover:border-emerald-500/40 hover:bg-neutral-900/60">
       <span
         aria-hidden
-        className="grid h-9 w-9 place-items-center rounded-lg bg-neutral-950 text-lg"
+        className="grid h-10 w-10 place-items-center rounded-lg border border-neutral-800 bg-neutral-950 text-emerald-400 transition group-hover:border-emerald-500/40 group-hover:text-emerald-300"
       >
-        {icon}
+        <HugeiconsIcon icon={icon} size={22} strokeWidth={1.5} />
       </span>
-      <h3 className="mt-3 text-sm font-semibold text-neutral-100">{title}</h3>
-      <p className="mt-2 text-xs leading-relaxed text-neutral-400">{body}</p>
+      <h3 className="mt-4 text-sm font-semibold text-neutral-100">{title}</h3>
+      <p className="mt-2 text-xs leading-relaxed text-neutral-300">{body}</p>
     </div>
   );
 }

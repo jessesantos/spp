@@ -13,6 +13,7 @@ anthropic==0.39.0
 yfinance==0.2.48
 tensorflow==2.16.1
 scikit-learn==1.5.2
+joblib==1.4.2
 pandas==2.2.3
 numpy==1.26.4
 structlog==24.4.0

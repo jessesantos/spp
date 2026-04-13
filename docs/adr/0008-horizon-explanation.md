@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceito (2026-04-13)
+Aceito (2026-04-13). Atualizado em 2026-04-13 (v3.1) para narrativa dinamica multi-sinal.
 
 ## Contexto
 
@@ -23,13 +23,21 @@ horizonte de previsao:
    base, predito, pct, direcao, sentimento (score + contagens) e
    contexto macro disponivel.
 2. **Dois geradores intercambiaveis (SOLID/DIP)**:
-   - `HeuristicExplanationGenerator` monta texto deterministico em 6
-     blocos (abertura, tendencia, sentimento, macro, horizonte, risco)
-     e garante 100 a 500 palavras via `_clamp_words`.
+   - `HeuristicExplanationGenerator` (**reescrito em v3.1**) produz
+     narrativa dinamica e comercial. Selecta overlays relevantes
+     (sentimento, macro, FX, mercados de previsao, volatilidade
+     condicional) **pulando sinais neutros** para evitar redundancia,
+     varia vocabulario por regime e intensidade. 100..500 palavras via
+     `_clamp_words` com pool de frases de padding variadas.
    - `ClaudeExplanationGenerator` usa Anthropic Claude Sonnet com
-     prompt-injection guard: sinais dentro de `<signal>`, instrucao
-     explicita para tratar como dado, sem markdown. Se a resposta tem
-     menos de 100 palavras ou falha, cai no heuristico.
+     prompt executivo: briefing de analista quantitativo, integracao
+     coerente dos sinais disponiveis, 120..350 palavras, tom
+     profissional, sem clichê. Recebe o `SKILL.md` (Escola Austriaca +
+     value + macro + reflexividade) via parametro `system=` da API
+     Anthropic, separando arcabouço teorico do conteudo de usuario.
+     Prompt-injection guard: sinais dentro de `<signal>`, instrucao
+     explicita para tratar como dado. Se a resposta tem menos de 100
+     palavras ou falha, cai no heuristico.
    Escolha acontece em `infra/dependencies._build_explanation_generator`
    com base em `settings.anthropic_api_key`.
 3. **Persistencia**. Nova coluna `predictions.explanation TEXT NULL`
@@ -42,8 +50,18 @@ horizonte de previsao:
    o payload de `/api/predict` ja inclui o campo inline.
 5. **UI acessivel**. `HorizonCard` ganha icone "information-circle"
    com `aria-label="Por que essa tendencia?"`. Clique abre
-   `ExplanationModal` (role dialog, ESC, backdrop click, word count
-   no rodape). Sem dependencia nova.
+   `ExplanationModal` (role dialog, ESC, backdrop click). Em v3.1 o
+   rodape foi trocado de "contador de palavras" para um descritor da
+   composicao do sinal ("Leitura composta por LSTM + sentimento + macro
+   + mercados + câmbio"), refletindo o pipeline multi-fonte.
+
+6. **Sinais v3.1 integrados no `ExplanationInput`** (novos campos
+   opcionais preservam compatibilidade): `fx_score`, `fx_exposure_label`
+   (exportador/importador/neutro), `market_signal_score`,
+   `market_signal_confidence`, `market_signal_topics` e `cond_vol`
+   (volatilidade EWMA anualizada). O `PredictionService` faz best-effort
+   fetch de cada sinal via `_safe_fx` / `_safe_market` / `_safe_cond_vol`
+   (try/except degrada para None, nunca derruba o predict).
 
 ## Alternativas consideradas
 
@@ -75,10 +93,13 @@ Negativas:
   Mitigado porque `PredictionService` so gera explicacao no fluxo de
   predicao persistida (nao em WebSocket ticks) e o upsert reaproveita
   texto previamente salvo.
-- Heuristica e repetitiva entre tickers; tradeoff aceito para o modo
-  sem LLM.
-- Janela de 100..500 palavras e um compromisso: explicacoes muito
-  tecnicas podem ficar curtas; cenarios complexos podem ser truncados.
+- Janela de 100..500 palavras (heuristica) / 120..350 (Claude) e um
+  compromisso: explicacoes muito tecnicas podem ficar curtas; cenarios
+  complexos podem ser truncados.
+- Em v3.1 `PredictionService` acoplou-se a `CurrencyImpactAnalyzer` e
+  `PredictionMarketAggregator`. Ambos sao injetaveis e opcionais (None
+  degrada sem erro), mas expandem o numero de dependencias construidas
+  no composition root.
 
 ## Rastreabilidade
 

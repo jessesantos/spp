@@ -106,8 +106,11 @@ async function request<T>(
   schema: z.ZodType<T>,
   init?: RequestInit,
 ): Promise<T> {
+  // Default: 60s ISR cache para alinhar com revalidate das paginas.
+  // Callers que precisam de dados frescos (ex.: refresh manual) podem
+  // passar init.cache = "no-store".
   const response = await fetch(`${API_BASE}${path}`, {
-    cache: "no-store",
+    next: { revalidate: 60 },
     ...init,
     headers: {
       Accept: "application/json",

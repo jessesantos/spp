@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SPP v3 - Stock Price Predictor",
+  title: "SPP - Stock Price Predictor",
   description: "LSTM + Claude sentiment analysis para B3",
 };
 

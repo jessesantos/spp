@@ -77,6 +77,8 @@ class TrainingOrchestrator:
         model_runs_repo: ModelRunsRepo | None = None,
         sentiment_builder: Callable[[str], Awaitable[float]] | None = None,
         macro_builder: Callable[[], Awaitable[float]] | None = None,
+        fx_builder: Callable[[str], Awaitable[float]] | None = None,
+        market_builder: Callable[[str], Awaitable[float]] | None = None,
         models_dir: str | Path = "/app/models",
     ) -> None:
         self._prices = prices_repo
@@ -84,13 +86,15 @@ class TrainingOrchestrator:
         self._runs = model_runs_repo
         self._sentiment_builder = sentiment_builder
         self._macro_builder = macro_builder
+        self._fx_builder = fx_builder
+        self._market_builder = market_builder
         self._models_dir = Path(models_dir)
 
     async def train(
         self,
         ticker: str,
         *,
-        period: str = "1y",
+        period: str = "3y",
         epochs: int = 50,
         sequence_length: int = 5,
         batch_size: int = 16,
@@ -115,8 +119,12 @@ class TrainingOrchestrator:
 
         sentiment = await self._safe_signal(self._sentiment_builder, ticker)
         macro = await self._safe_signal(self._macro_builder, None)
+        fx = await self._safe_signal(self._fx_builder, ticker)
+        market = await self._safe_signal(self._market_builder, ticker)
         df = self._attach_signal(df, "sentiment", sentiment)
         df = self._attach_signal(df, "macro_score", macro)
+        df = self._attach_signal(df, "fx_score", fx)
+        df = self._attach_signal(df, "market_signal_score", market)
 
         try:
             metrics, artifact = self._fit_and_save(

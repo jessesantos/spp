@@ -74,17 +74,26 @@ adicional) seguindo exatamente este schema:
 
 
 class ClaudeSentimentAnalyzer:
-    """Sentiment scorer backed by Anthropic Claude."""
+    """Sentiment scorer backed by Anthropic Claude.
+
+    Optionally receives a ``system_prompt`` (e.g., loaded from
+    ``backend/app/ml/SKILL.md``) containing the economic framework
+    (Austrian school, value investing, macro) the model should apply.
+    The skill is injected via Anthropic's ``system`` parameter and does
+    not mix with untrusted article text.
+    """
 
     def __init__(
         self,
         client: _AnthropicLike,
         model: str = "claude-sonnet-4-5-20250929",
         max_tokens: int = 300,
+        system_prompt: str | None = None,
     ) -> None:
         self._client = client
         self._model = model
         self._max_tokens = max_tokens
+        self._system_prompt = system_prompt
 
     def analyze(self, article: dict[str, Any], ticker: str) -> SentimentResult:
         """Score a single article. Never raises; returns neutral on failure."""
@@ -98,11 +107,14 @@ class ClaudeSentimentAnalyzer:
         prompt = _PROMPT_TEMPLATE.format(ticker=self._sanitize(ticker), article=body)
 
         try:
-            response = self._client.messages.create(
-                model=self._model,
-                max_tokens=self._max_tokens,
-                messages=[{"role": "user", "content": prompt}],
-            )
+            create_kwargs: dict[str, Any] = {
+                "model": self._model,
+                "max_tokens": self._max_tokens,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if self._system_prompt:
+                create_kwargs["system"] = self._system_prompt
+            response = self._client.messages.create(**create_kwargs)
             text = self._extract_text(response)
             payload = self._parse_json(text)
             return SentimentResult(
@@ -127,8 +139,13 @@ class ClaudeSentimentAnalyzer:
 
     @staticmethod
     def _sanitize(value: str) -> str:
-        """Strip characters that could break out of the prompt context."""
-        return re.sub(r"[<>`]", "", value)[:32]
+        """Strip characters that could break out of the prompt context.
+
+        Alem de `<>` e backticks, tambem normaliza quebras de linha:
+        sem isso, uma string como ``"PETR4\\nIgnore instrucoes..."``
+        poderia encerrar o bloco de dado e comecar uma instrucao.
+        """
+        return re.sub(r"[<>`\r\n\t]", " ", value)[:32].strip()
 
     @staticmethod
     def _extract_text(response: Any) -> str:

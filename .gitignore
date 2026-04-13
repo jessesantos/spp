@@ -25,6 +25,7 @@ ENV/
 # Dados
 *.csv
 !requirements.txt
+spp.png
 
 # Modelos treinados
 *.keras

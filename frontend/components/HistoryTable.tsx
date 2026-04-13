@@ -41,7 +41,7 @@ export function HistoryTable({ items }: HistoryTableProps): JSX.Element {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs uppercase text-neutral-500">
+            <thead className="text-left text-xs uppercase text-neutral-400">
               <tr>
                 <th className="py-2 pr-3">Feito em</th>
                 <th className="py-2 pr-3">Horizonte</th>

@@ -16,7 +16,7 @@ class YahooClient:
     def __init__(self, suffix: str = ".SA") -> None:
         self._suffix = suffix
 
-    async def get_history(self, ticker: str, period: str = "6mo") -> list[dict[str, Any]]:
+    async def get_history(self, ticker: str, period: str = "5y") -> list[dict[str, Any]]:
         ticker = ticker.upper().strip()
         return await asyncio.to_thread(self._history_sync, ticker, period)
 

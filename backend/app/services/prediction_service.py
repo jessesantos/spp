@@ -21,6 +21,11 @@ from app.api.schemas import (
     PredictionResponse,
     SentimentScore,
 )
+from app.domain import (
+    HORIZON_DEFINITIONS,
+    HORIZON_LABELS,
+    horizon_label_for_days,
+)
 from app.ml.explanation import (
     ExplanationGenerator,
     ExplanationInput,
@@ -31,14 +36,14 @@ from app.repositories.predictions_repository import (
 )
 
 NEUTRAL_THRESHOLD_PCT: float = 0.5
-HORIZON_DEFINITIONS: tuple[tuple[str, int], ...] = (
-    ("D1", 1),
-    ("W1", 7),
-    ("M1", 30),
-)
-HORIZON_LABELS: dict[int, str] = {1: "Amanha", 7: "+7 dias", 30: "+30 dias"}
 ROLLOUT_STEPS: int = 30
 MIN_HISTORY_DAYS: int = 120
+# Janela de curto-circuito: se ja existe previsao persistida para os 3
+# horizontes criada ha menos que isso, servir o DB sem recomputar.
+# Garante que Home (lista de tickers) e Dashboard (detalhe) leiam
+# numeros identicos dentro do mesmo minuto, mesmo se o cache do Next
+# expirar entre uma chamada e outra.
+CACHE_WINDOW_SECONDS: int = 60
 
 
 class _PricesRepo(Protocol):
@@ -63,6 +68,16 @@ class _SentimentAggregator(Protocol):
     async def aggregate(self, ticker: str) -> SentimentScore: ...
 
 
+class _FxAnalyzer(Protocol):
+    async def analyze(
+        self, ticker: str, ticker_history: list[dict[str, Any]]
+    ) -> Any: ...
+
+
+class _MarketAggregator(Protocol):
+    async def signal_for(self, ticker: str) -> Any: ...
+
+
 class PredictionService:
     """Produce prediction responses and persist them for reconciliation."""
 
@@ -74,6 +89,8 @@ class PredictionService:
         predictions_repo: PredictionsRepo | None = None,
         ohlcv_repo: _OhlcvRepo | None = None,
         explanation_generator: ExplanationGenerator | None = None,
+        fx_analyzer: _FxAnalyzer | None = None,
+        market_aggregator: _MarketAggregator | None = None,
         models_dir: str | Path = "/app/models",
         fallback_stub: bool = True,
     ) -> None:
@@ -82,6 +99,8 @@ class PredictionService:
         self._predictions_repo = predictions_repo
         self._ohlcv_repo = ohlcv_repo
         self._explainer = explanation_generator
+        self._fx_analyzer = fx_analyzer
+        self._market_aggregator = market_aggregator
         self._models_dir = Path(models_dir)
         self._fallback_stub = fallback_stub
 
@@ -99,12 +118,27 @@ class PredictionService:
 
     async def predict_with_horizons(self, ticker: str) -> MultiHorizonResponse:
         ticker = ticker.upper().strip()
+
+        cached = await self._try_cached_response(ticker)
+        if cached is not None:
+            return cached
+
         rollout, last_price = await self._compute_rollout(ticker)
         today = date.today()
 
         sentiment = await self._safe_sentiment(ticker)
+        fx_impact = await self._safe_fx(ticker)
+        market_signal = await self._safe_market(ticker)
+        cond_vol = await self._safe_cond_vol(ticker)
         horizons = self._build_horizons(
-            last_price, rollout, today, ticker=ticker, sentiment=sentiment
+            last_price,
+            rollout,
+            today,
+            ticker=ticker,
+            sentiment=sentiment,
+            fx_impact=fx_impact,
+            market_signal=market_signal,
+            cond_vol=cond_vol,
         )
         preview = self._build_preview_points(rollout, today, limit=5)
 
@@ -118,6 +152,82 @@ class PredictionService:
             sentiment=sentiment,
             direction_accuracy=None,
         )
+
+    async def _try_cached_response(
+        self, ticker: str
+    ) -> MultiHorizonResponse | None:
+        """Retorna resposta consistente a partir do DB quando todas as 3
+        predicoes estao frescas (<CACHE_WINDOW_SECONDS). Deduplica chamadas
+        entre home e dashboard dentro da mesma janela de tempo.
+        """
+        if self._predictions_repo is None:
+            return None
+
+        now = datetime.now(tz=timezone.utc)
+        cutoff = now - timedelta(seconds=CACHE_WINDOW_SECONDS)
+        records: list[Any] = []
+        for _, horizon_days in HORIZON_DEFINITIONS:
+            try:
+                rec = await self._predictions_repo.latest_for(ticker, horizon_days)
+            except Exception:  # noqa: BLE001 - cache e best-effort
+                return None
+            if rec is None or rec.created_at is None:
+                return None
+            created = rec.created_at
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            if created < cutoff:
+                return None
+            records.append(rec)
+
+        last_price = float(records[0].base_close)
+        sentiment = await self._safe_sentiment(ticker)
+        horizons: list[HorizonPrediction] = []
+        for (code, horizon_days), rec in zip(HORIZON_DEFINITIONS, records, strict=True):
+            horizons.append(
+                HorizonPrediction(
+                    horizon=code,  # type: ignore[arg-type]
+                    horizon_days=horizon_days,
+                    target_date=rec.target_date,
+                    base_close=float(rec.base_close),
+                    predicted_close=float(rec.predicted_close),
+                    predicted_pct=float(rec.predicted_pct),
+                    direction=rec.direction,
+                    explanation=rec.explanation,
+                )
+            )
+        preview = self._preview_from_horizons(horizons)
+        return MultiHorizonResponse(
+            ticker=ticker,
+            last_price=round(last_price, 2),
+            horizons=horizons,
+            predictions=preview,
+            sentiment=sentiment,
+            direction_accuracy=None,
+        )
+
+    @staticmethod
+    def _preview_from_horizons(
+        horizons: list[HorizonPrediction],
+    ) -> list[PredictionPoint]:
+        """Sintetiza um preview minimo a partir dos horizontes persistidos.
+
+        Quando servimos do cache DB nao temos o rollout completo de 5 dias
+        (apenas D1/W1/M1 foram persistidos). Gera-se uma preview com os 3
+        pontos disponiveis para manter compatibilidade com o dashboard que
+        ainda consulta ``predictions[0]``. O gap entre dias nao e linear,
+        mas o frontend usa predictions[0] apenas como atalho para D1.
+        """
+        if not horizons:
+            return []
+        return [
+            PredictionPoint(
+                date=h.target_date,
+                predicted_close=h.predicted_close,
+                direction=h.direction,
+            )
+            for h in horizons
+        ]
 
     # --- internals -----------------------------------------------------
 
@@ -236,6 +346,9 @@ class PredictionService:
         *,
         ticker: str = "",
         sentiment: SentimentScore | None = None,
+        fx_impact: Any | None = None,
+        market_signal: Any | None = None,
+        cond_vol: float | None = None,
     ) -> list[HorizonPrediction]:
         horizons: list[HorizonPrediction] = []
         for label, horizon_days in HORIZON_DEFINITIONS:
@@ -259,6 +372,9 @@ class PredictionService:
                     pct=pct,
                     direction=direction,
                     sentiment=sentiment,
+                    fx_impact=fx_impact,
+                    market_signal=market_signal,
+                    cond_vol=cond_vol,
                 ),
             )
             horizons.append(horizon)
@@ -274,12 +390,15 @@ class PredictionService:
         pct: float,
         direction: str,
         sentiment: SentimentScore | None,
+        fx_impact: Any | None = None,
+        market_signal: Any | None = None,
+        cond_vol: float | None = None,
     ) -> str | None:
         if self._explainer is None:
             return None
         payload = ExplanationInput(
             ticker=ticker,
-            horizon_label=HORIZON_LABELS.get(horizon_days, f"+{horizon_days} dias"),
+            horizon_label=horizon_label_for_days(horizon_days),
             horizon_days=horizon_days,
             base_close=round(base, 2),
             predicted_close=round(predicted, 2),
@@ -291,9 +410,72 @@ class PredictionService:
             sentiment_neutrals=(sentiment.neutrals if sentiment is not None else 0),
             macro_score=None,
             macro_top_keywords=(),
+            fx_score=_safe_float_attr(fx_impact, "fx_score"),
+            fx_exposure_label=_safe_str_attr(fx_impact, "exposure_label"),
+            market_signal_score=_safe_float_attr(market_signal, "score"),
+            market_signal_confidence=_safe_float_attr(market_signal, "confidence"),
+            market_signal_topics=_safe_tuple_attr(market_signal, "topics", limit=5),
+            cond_vol=cond_vol,
         )
         try:
             return self._explainer.generate(payload)
+        except Exception:  # noqa: BLE001
+            return None
+
+    @staticmethod
+    async def _safe_await(coro: Any, default: Any = None) -> Any:
+        """Awaita um coroutine best-effort; devolve ``default`` em caso de erro.
+
+        Centraliza o padrao repetido nas buscas de sinais externos: se a
+        coro foi construida com dependencia ausente (``None``), o chamador
+        curto-circuita antes de chamar este helper; se a chamada em si
+        falhar (network, parse, rate limit), o default mantem o predict
+        em degrade graceful em vez de 500.
+        """
+        if coro is None:
+            return default
+        try:
+            return await coro
+        except Exception:  # noqa: BLE001 - graceful degradation obrigatoria
+            return default
+
+    async def _safe_fx(self, ticker: str) -> Any | None:
+        if self._fx_analyzer is None:
+            return None
+        history = await self._safe_await(
+            self._load_history_db_first(ticker), default=[]
+        )
+        return await self._safe_await(
+            self._fx_analyzer.analyze(ticker, history or [])
+        )
+
+    async def _safe_market(self, ticker: str) -> Any | None:
+        if self._market_aggregator is None:
+            return None
+        return await self._safe_await(self._market_aggregator.signal_for(ticker))
+
+    async def _safe_cond_vol(self, ticker: str) -> float | None:
+        if self._prices_repo is None and self._ohlcv_repo is None:
+            return None
+        try:
+            history = await self._load_history_db_first(ticker)
+        except Exception:  # noqa: BLE001
+            return None
+        if not history or len(history) < 30:
+            return None
+        try:
+            import pandas as pd
+
+            from app.ml.features import add_conditional_volatility
+
+            df = pd.DataFrame(history)
+            if "close" not in df.columns:
+                return None
+            out = add_conditional_volatility(df.copy())
+            value = float(out["cond_vol"].iloc[-1])
+            if value <= 0 or not (value == value):  # NaN check
+                return None
+            return value
         except Exception:  # noqa: BLE001
             return None
 
@@ -332,10 +514,7 @@ class PredictionService:
     async def _safe_sentiment(self, ticker: str) -> SentimentScore | None:
         if self._sentiment is None:
             return None
-        try:
-            return await self._sentiment.aggregate(ticker)
-        except Exception:  # noqa: BLE001
-            return None
+        return await self._safe_await(self._sentiment.aggregate(ticker))
 
     async def _persist_horizons(
         self, ticker: str, horizons: list[HorizonPrediction]
@@ -358,6 +537,39 @@ class PredictionService:
                 )
             except Exception:  # noqa: BLE001 - persistence must never break predict
                 continue
+
+
+def _safe_float_attr(obj: Any, name: str) -> float | None:
+    if obj is None:
+        return None
+    value = getattr(obj, name, None)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_str_attr(obj: Any, name: str) -> str | None:
+    if obj is None:
+        return None
+    value = getattr(obj, name, None)
+    if value is None:
+        return None
+    return str(value)
+
+
+def _safe_tuple_attr(obj: Any, name: str, limit: int = 5) -> tuple[str, ...]:
+    if obj is None:
+        return ()
+    value = getattr(obj, name, None)
+    if not value:
+        return ()
+    try:
+        return tuple(str(x) for x in value)[:limit]
+    except TypeError:
+        return ()
 
 
 def _signed_pct(value: float, base: float) -> float:

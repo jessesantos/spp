@@ -33,8 +33,11 @@
 |    |          SentimentService, ReconciliationService)       |
 |    v                                                         |
 |  repositories/ SqlAlchemyPredictionsRepo                     |
-|  ml/          features, LSTM, ClaudeSentiment, MacroContext  |
-|  data/        BrAPIClient, YahooClient, RSSNewsClient        |
+|  ml/          features (incl cond_vol EWMA), LSTM, Claude    |
+|               sentiment (+SKILL.md), MacroContext, fx_impact |
+|  data/        BrAPIClient, YahooClient, RSSNewsClient,       |
+|               KalshiClient, PolymarketClient                 |
+|  domain/      TickerSymbol (value object), horizons (D1/W1/M1)|
 |    v                                                         |
 |  db/          SQLAlchemy 2.0 models + session factory        |
 |  infra/       config, logging, middleware, celery, DI        |
@@ -52,7 +55,8 @@
                             v
 +--------------------------------------------------------------+
 |   External APIs:  BrAPI (B3) · yfinance · Anthropic Claude   |
-|                   RSS feeds (PT-BR + internacionais macro)   |
+|                   RSS (PT-BR + internacionais macro)         |
+|                   Kalshi · Polymarket Gamma API              |
 +--------------------------------------------------------------+
 ```
 

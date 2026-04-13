@@ -40,7 +40,7 @@ class BrAPIClient:
         self._retries = retries
         self._backoff = backoff_seconds
 
-    async def get_quote(self, ticker: str, range_: str = "3mo") -> dict[str, Any]:
+    async def get_quote(self, ticker: str, range_: str = "5y") -> dict[str, Any]:
         ticker = ticker.upper().strip()
         if not _VALID_TICKER.match(ticker):
             raise ValueError(f"invalid ticker: {ticker!r}")

@@ -96,6 +96,34 @@ def add_volume_features(df: pd.DataFrame, window: int) -> pd.DataFrame:
     return df
 
 
+def add_conditional_volatility(
+    df: pd.DataFrame, *, decay: float = 0.94, annualize: bool = True
+) -> pd.DataFrame:
+    """EWMA conditional volatility (RiskMetrics / GARCH-like).
+
+    Implementa sigma_t^2 = decay * sigma_{t-1}^2 + (1 - decay) * r_{t-1}^2,
+    lambda=0.94 (RiskMetrics padrao J.P. Morgan 1996) como aproximacao
+    barata de GARCH(1,1) com alpha=0.06, beta=0.94. Captura clustering
+    de volatilidade sem dependencia externa.
+
+    Adiciona coluna ``cond_vol`` em forma anualizada (raiz de 252 pregoes).
+    """
+    log_returns = np.log(df["close"] / df["close"].shift(1)).fillna(0.0)
+    squared = log_returns.to_numpy(dtype=float) ** 2
+    variance = np.zeros_like(squared)
+    if len(squared) > 0:
+        # Inicializa com media incondicional das primeiras 20 obs.
+        init = squared[: min(20, len(squared))].mean() if len(squared) >= 2 else 0.0
+        variance[0] = init
+        for i in range(1, len(squared)):
+            variance[i] = decay * variance[i - 1] + (1.0 - decay) * squared[i - 1]
+    sigma = np.sqrt(np.maximum(variance, 0.0))
+    if annualize:
+        sigma = sigma * np.sqrt(252.0)
+    df["cond_vol"] = sigma
+    return df
+
+
 def build_features(df: pd.DataFrame, config: FeatureConfig | None = None) -> pd.DataFrame:
     """Compute the full feature set used by the LSTM model.
 
@@ -113,6 +141,7 @@ def build_features(df: pd.DataFrame, config: FeatureConfig | None = None) -> pd.
     out = add_macd(out, cfg.macd_fast, cfg.macd_slow, cfg.macd_signal)
     out = add_bollinger_bands(out, cfg.bollinger_period, cfg.bollinger_std)
     out = add_volatility(out, cfg.volatility_window)
+    out = add_conditional_volatility(out)
     out = add_returns(out)
     out = add_momentum(out, cfg.momentum_period)
     out = add_volume_features(out, cfg.volume_ma_window)

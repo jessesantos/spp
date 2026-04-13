@@ -35,6 +35,24 @@ class Settings(BaseSettings):
     rate_limit_default: str = Field(default="60/minute")
     rate_limit_predict: str = Field(default="10/minute")
 
+    # Janela de treinamento (v3.1 - ADR 0009): 3 anos por padrao.
+    training_period_default: str = Field(default="3y")
+    backfill_lookback_days: int = Field(default=1095)
+
+    # Prediction markets (Kalshi + Polymarket).
+    kalshi_base_url: str = Field(
+        default="https://api.elections.kalshi.com/trade-api/v2"
+    )
+    kalshi_api_key: str | None = None
+    polymarket_base_url: str = Field(default="https://gamma-api.polymarket.com")
+    prediction_markets_enabled: bool = Field(default=True)
+
+    # Skill de analise economica para Claude (ADR 0009).
+    sentiment_skill_path: str = Field(
+        default="/app/app/ml/SKILL.md",
+        description="Caminho absoluto para o SKILL.md de analise economica",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

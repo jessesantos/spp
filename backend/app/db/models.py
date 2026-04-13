@@ -134,3 +134,28 @@ class ModelRun(Base):
         DateTime(timezone=True), default=datetime.utcnow, nullable=False
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class PredictionMarketSignalRecord(Base):
+    """Snapshot diario agregado de mercados de previsao (Kalshi/Polymarket) por ticker."""
+
+    __tablename__ = "prediction_market_signals"
+    __table_args__ = (
+        UniqueConstraint(
+            "ticker_symbol", "snapshot_date",
+            name="uq_pm_signals_ticker_date",
+        ),
+        Index("ix_pm_signals_ticker", "ticker_symbol"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    ticker_symbol: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
+    snapshot_date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    market_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    topics: Mapped[str | None] = mapped_column(Text)
+    top_questions: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=datetime.utcnow, nullable=False
+    )

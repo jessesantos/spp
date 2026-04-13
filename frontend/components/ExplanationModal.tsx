@@ -7,7 +7,9 @@
  * explicit close button. Renders a friendly placeholder when the explanation
  * has not been generated yet.
  */
-import { useEffect, useId, useMemo, type JSX } from "react";
+import { useEffect, useId, type JSX } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
 
 export interface ExplanationModalProps {
   open: boolean;
@@ -17,12 +19,7 @@ export interface ExplanationModalProps {
 }
 
 const PLACEHOLDER =
-  "Explicacao ainda nao disponivel. Faca uma nova previsao para gerar o texto.";
-
-function countWords(text: string): number {
-  const matches = text.match(/\S+/g);
-  return matches ? matches.length : 0;
-}
+  "Explicação ainda não disponível. Faça uma nova previsão para gerar o texto.";
 
 export function ExplanationModal({
   open,
@@ -40,11 +37,6 @@ export function ExplanationModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
-
-  const words = useMemo(
-    () => (explanation ? countWords(explanation) : 0),
-    [explanation],
-  );
 
   if (!open) return null;
 
@@ -65,8 +57,8 @@ export function ExplanationModal({
       >
         <header className="flex items-start justify-between gap-4 border-b border-neutral-800 pb-3">
           <div>
-            <p className="text-[10px] uppercase tracking-wider text-neutral-500">
-              Por que essa tendencia?
+            <p className="text-[10px] uppercase tracking-wider text-neutral-400">
+              Por que essa tendência?
             </p>
             <h2
               id={titleId}
@@ -79,20 +71,29 @@ export function ExplanationModal({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="rounded-md border border-neutral-800 px-2 py-1 text-sm text-neutral-400 hover:bg-neutral-900 hover:text-neutral-100"
+            className="rounded-md border border-neutral-800 p-1.5 text-neutral-400 transition hover:bg-neutral-900 hover:text-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
           >
-            x
+            <HugeiconsIcon
+              icon={Cancel01Icon}
+              size={16}
+              strokeWidth={1.75}
+              aria-hidden
+            />
           </button>
         </header>
         <div className="mt-4 max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-neutral-200">
           {body}
         </div>
-        <footer className="mt-4 flex items-center justify-between border-t border-neutral-800 pt-3 text-xs text-neutral-500">
-          <span>{hasText ? `${words} palavras` : "Sem texto persistido"}</span>
+        <footer className="mt-4 flex items-center justify-between border-t border-neutral-800 pt-3 text-xs text-neutral-400">
+          <span>
+            {hasText
+              ? "Leitura composta por LSTM + sentimento + macro + mercados + câmbio"
+              : "Sem texto persistido"}
+          </span>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-neutral-700 px-3 py-1 text-neutral-200 hover:bg-neutral-900"
+            className="rounded-md border border-neutral-700 px-3 py-1 text-neutral-200 transition hover:bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
           >
             Fechar
           </button>

@@ -15,6 +15,7 @@ from app.api.schemas import (
     SentimentScore,
     TickerInfo,
 )
+from app.domain import InvalidTickerError, TickerSymbol
 from app.infra.dependencies import (
     model_runs_repo,
     prediction_repo,
@@ -34,10 +35,11 @@ router = APIRouter()
 
 
 def _validate_ticker(ticker: str) -> str:
-    ticker = ticker.upper().strip()
-    if not ticker.isalnum() or not (1 <= len(ticker) <= 10):
-        raise DomainError("invalid ticker", status_code=400)
-    return ticker
+    """Normaliza e valida via ``TickerSymbol`` do dominio, traduzindo erro para 400."""
+    try:
+        return str(TickerSymbol.from_raw(ticker))
+    except InvalidTickerError as exc:
+        raise DomainError("invalid ticker", status_code=400) from exc
 
 
 @router.get("/tickers", response_model=list[TickerInfo], tags=["tickers"])

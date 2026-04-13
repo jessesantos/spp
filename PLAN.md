@@ -160,6 +160,19 @@ Conforme `SPP_RECOMENDACAO_MELHORIA.md` §1:
 
 **Aceite**: `alembic upgrade head` aplica 0004; `/api/predict/PETR4` inclui explicacao em cada horizonte; modal abre pelo icone no dashboard e mostra o texto persistido.
 
+### Fase 14 - Épico v3.1: técnicas avançadas (coordenado por `@sm`) ✅ done
+
+Incrementos sobre v3 para enriquecer o sinal preditivo sem refatorar o core LSTM. Detalhes em `docs/adr/0009-advanced-ml-techniques.md`.
+
+- **Janela de treino 3 anos** (anterior: 1 ano). Defaults em `TrainingOrchestrator`, CLI `app/ml/train.py`, `BrAPIClient`, `YahooClient`, `tasks.BACKFILL_LOOKBACK_DAYS=1095`.
+- **Volatilidade condicional EWMA** (RiskMetrics lambda=0.94) como feature `cond_vol` em `features.py`. Aproximação barata de GARCH(1,1) sem dependência nova.
+- **Mercados de previsão** (Kalshi + Polymarket) via `backend/app/data/prediction_markets.py`. Clients públicos, agregador por ticker com mapeamento de tópicos (oil/brent -> PETR4, iron ore -> VALE3, rate cut -> bancos). Snapshots persistidos em `prediction_market_signals` (migration 0005).
+- **Impacto cambial BRL/USD** via `backend/app/ml/fx_impact.py` (`CurrencyImpactAnalyzer`): heurística setorial + correlação Pearson ticker vs `USDBRL=X` nos últimos 90 dias, feature `fx_score`.
+- **SKILL econômico do Claude** em `backend/app/ml/SKILL.md` injetado como `system` prompt em `ClaudeSentimentAnalyzer` e `ClaudeExplanationGenerator`: Escola Austríaca (Mises/Hayek/Böhm-Bawerk), value investing (Graham/Buffett), macro (Fed/BCB/yield curve), behavioral (Kahneman/Soros reflexividade).
+- **Testes**: `test_fx_impact.py` (9), `test_prediction_markets.py` (11), `test_skill_and_volatility.py` (7). Suite total: 83 passing.
+
+**Aceite**: `pytest tests/ -q` verde; `alembic upgrade head` aplica 0005; `docker compose up -d` continua funcional; `docs/adr/0009` + ADR/README/ARCHITECTURE/status atualizados.
+
 ---
 
 ## 4. Critério de pronto (Definition of Done)
