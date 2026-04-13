@@ -1,4 +1,4 @@
-# SPP v3 - Stock Price Predictor
+# SPP - Stock Price Predictor
 
 Plataforma full-stack de análise preditiva para a B3, combinando rede neural LSTM, análise de sentimento via Claude (Anthropic) e contexto macro global (notícias nacionais + internacionais) para antecipar movimentos de preço em múltiplos horizontes temporais.
 
