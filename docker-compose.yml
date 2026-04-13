@@ -1,0 +1,105 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: spp
+      POSTGRES_USER: spp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spp}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spp -d spp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: development
+      DATABASE_URL: postgresql+asyncpg://spp:${POSTGRES_PASSWORD:-spp}@postgres/spp
+      REDIS_URL: redis://redis:6379/0
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-sonnet-4-5-20250929}
+      CORS_ORIGINS: '["http://localhost:3000"]'
+      MODEL_FALLBACK_STUB: "true"
+      MODELS_DIR: /app/models
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.infra.celery_app worker --loglevel=info -Q training
+    environment:
+      DATABASE_URL: postgresql+asyncpg://spp:${POSTGRES_PASSWORD:-spp}@postgres/spp
+      REDIS_URL: redis://redis:6379/0
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MODEL_FALLBACK_STUB: "true"
+      MODELS_DIR: /app/models
+    volumes:
+      - ./models:/app/models
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.infra.celery_app beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    environment:
+      DATABASE_URL: postgresql+asyncpg://spp:${POSTGRES_PASSWORD:-spp}@postgres/spp
+      REDIS_URL: redis://redis:6379/0
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MODEL_FALLBACK_STUB: "true"
+    depends_on:
+      redis:
+        condition: service_healthy
+      worker:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      API_URL_INTERNAL: http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

@@ -10,7 +10,6 @@ venv/
 env/
 ENV/
 .venv
-docker-compose.yml
 
 # IDEs
 .vscode/
@@ -53,3 +52,29 @@ Thumbs.db
 *.pb
 checkpoints/
 logs/
+
+# Environment & Secrets (AIOX)
+.env.*.local
+*.key
+*.pem
+
+# Dependencies (AIOX)
+node_modules/
+node_modules
+
+# Build & Logs (AIOX)
+dist/
+build/
+
+# AIOX Local (AIOX)
+.aiox-core/local/
+.claude/settings.local.json
+.aiox/install-log.txt
+
+# AI Agent tooling (local config / caches)
+.aiox-core/
+.antigravity/
+.claude/
+.codex/
+.cursor/
+.gemini/
