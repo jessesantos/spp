@@ -33,8 +33,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--ticker", required=True, help="Ex.: PETR4, VALE3")
     parser.add_argument(
         "--period",
-        default="3y",
-        help="Janela de historico BrAPI (1mo, 3mo, 6mo, 1y, 2y, 3y, 5y). Padrao: 3y",
+        default="5y",
+        help="Janela de historico BrAPI (1mo, 3mo, 6mo, 1y, 2y, 5y, max). Padrao: 5y",
     )
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--sequence-length", type=int, default=5)

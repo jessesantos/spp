@@ -72,6 +72,12 @@ build/
 .claude/settings.local.json
 .aiox/install-log.txt
 
+# Docs (gerados / mantidos fora do deploy)
+docs/
+
+# Legacy root scripts (v1/v2)
+/*.py
+
 # AI Agent tooling (local config / caches)
 .aiox-core/
 .antigravity/

@@ -4,7 +4,7 @@ Plataforma full-stack de análise preditiva para a B3, combinando rede neural LS
 
 Inspirado em arquiteturas de sistemas de investimento como o Aladdin da BlackRock, o projeto integra histórico de preços, volume, indicadores técnicos e sinais de notícias para projetar preços em **D+1**, **D+7** e **D+30**, com reconciliação automática do erro contra o preço real.
 
-> **Status:** v3.1 produção demo em Docker com fallback stub determinístico. Inclui mercados de previsão (Kalshi + Polymarket), analisador de impacto cambial BRL/USD, volatilidade condicional EWMA (RiskMetrics) e SKILL.md com Escola Austríaca aplicado ao Claude. Para previsões reais, treine seguindo `docs/TRAINING_WINDOWS.md`.
+> **Status:** v3.1 producao demo em Docker com fallback stub deterministico. Inclui mercados de previsao (Kalshi + Polymarket), analisador de impacto cambial BRL/USD, volatilidade condicional EWMA (RiskMetrics) e SKILL.md com Escola Austriaca aplicado ao Claude. Para previsoes reais, treine seguindo `TRAINING_WINDOWS.md` (na pasta `docs/`, mantida apenas localmente).
 
 ---
 
@@ -31,7 +31,7 @@ Inspirado em arquiteturas de sistemas de investimento como o Aladdin da BlackRoc
 
 ## Quick start
 
-Pré-requisitos: Docker + Docker Compose v2. Para treinamento com GPU (RTX 5070 Blackwell), veja [`docs/TRAINING_WINDOWS.md`](docs/TRAINING_WINDOWS.md).
+Pre-requisitos: Docker + Docker Compose v2. Para treinamento com GPU (RTX 5070 Blackwell), veja `docs/TRAINING_WINDOWS.md` (disponivel localmente, fora do controle de versao).
 
 ```bash
 git clone https://github.com/jessesantos/spp.git
@@ -86,7 +86,7 @@ Quatro camadas:
 
 O sistema se auto-alimenta via Celery beat (serviço `beat` no `docker-compose.yml`):
 
-- **Backfill sob demanda** - ao acessar um ticker pela primeira vez, `PredictionService` puxa 3 anos de OHLCV via BrAPI (fallback Yahoo) e persiste idempotentemente em `ohlcv` (unique `ticker_id + trade_date`).
+- **Backfill sob demanda** - ao acessar um ticker pela primeira vez, `PredictionService` puxa 5 anos de OHLCV via BrAPI (fallback Yahoo) e persiste idempotentemente em `ohlcv` (unique `ticker_id + trade_date`).
 - **Daily OHLCV sync** - todo dia às 22:00 BRT, o beat agenda `spp.daily_ohlcv_sync`: para cada ticker, sincroniza apenas o delta desde `latest_trade_date`.
 - **Weekly retrain** - domingo 23:00 BRT, o beat agenda `spp.weekly_retrain`: para cada ticker com dados, `TrainingOrchestrator.train` constrói features, pontua sentimento + contexto macro, treina o LSTM e salva em `models/{TICKER}.keras`.
 - **Auditoria** - cada execução cria uma linha em `model_runs` (`status`, `loss`, `direction_accuracy`, `artifact_path`). Exposta em `GET /api/models/{ticker}/runs`.
@@ -94,12 +94,12 @@ O sistema se auto-alimenta via Celery beat (serviço `beat` no `docker-compose.y
 Treino manual continua disponível:
 
 ```bash
-docker compose exec backend python -m app.ml.train --ticker PETR4 --period 3y --epochs 50
+docker compose exec backend python -m app.ml.train --ticker PETR4 --period 5y --epochs 50
 # ou dispare via API (vai pro Celery)
 curl -X POST http://localhost:8000/api/train/PETR4
 ```
 
-Ver [`docs/adr/0007-intelligent-training.md`](docs/adr/0007-intelligent-training.md) para a decisão arquitetural.
+Ver `docs/adr/0007-intelligent-training.md` (local) para a decisao arquitetural.
 
 ---
 
@@ -128,7 +128,7 @@ Ver [`docs/adr/0007-intelligent-training.md`](docs/adr/0007-intelligent-training
 
 ## Arquitetura em camadas
 
-Ver [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) para diagrama completo.
+Ver `docs/ARCHITECTURE.md` (local) para diagrama completo.
 
 ```
 frontend/                          backend/app/
@@ -142,7 +142,7 @@ frontend/                          backend/app/
                                    └── migrations/   (Alembic)
 ```
 
-Padrões seguidos (detalhe em [`AGENTS.md`](AGENTS.md)): MVC moderno em 4 camadas, SOLID, Clean Code, Twelve-Factor, TDD, OWASP Top 10.
+Padroes seguidos (detalhe em [`AGENTS.md`](AGENTS.md)): MVC moderno em 4 camadas, SOLID, Clean Code, Twelve-Factor, TDD, OWASP Top 10.
 
 ---
 
@@ -152,7 +152,7 @@ O sistema funciona sem treinamento via fallback stub. Para previsões reais:
 
 ```bash
 # Dentro do container backend (CPU)
-docker compose exec backend python -m app.ml.train --ticker PETR4 --period 3y --epochs 50
+docker compose exec backend python -m app.ml.train --ticker PETR4 --period 5y --epochs 50
 
 # Ou no Windows nativo com GPU RTX (Blackwell sm_120 exige TF 2.18+)
 # Ver docs/TRAINING_WINDOWS.md
@@ -160,7 +160,7 @@ docker compose exec backend python -m app.ml.train --ticker PETR4 --period 3y --
 
 O CLI:
 
-1. Baixa 3 anos de OHLCV via BrAPI (fallback yfinance)
+1. Baixa 5 anos de OHLCV via BrAPI (fallback yfinance)
 2. Coleta notícias RSS do ticker + feeds macro globais
 3. Agrega sentimento via Claude com SKILL.md (Escola Austríaca) ou heurística
 4. Puxa sinais de Kalshi/Polymarket relevantes ao ticker
@@ -218,8 +218,8 @@ RATE_LIMIT_DEFAULT=60/minute
 RATE_LIMIT_PREDICT=10/minute
 
 # v3.1 (ADR 0009)
-TRAINING_PERIOD_DEFAULT=3y
-BACKFILL_LOOKBACK_DAYS=1095
+TRAINING_PERIOD_DEFAULT=5y
+BACKFILL_LOOKBACK_DAYS=1825
 KALSHI_BASE_URL=https://api.elections.kalshi.com/trade-api/v2
 KALSHI_API_KEY=                 # opcional, somente eleva rate-limit
 POLYMARKET_BASE_URL=https://gamma-api.polymarket.com
@@ -247,24 +247,24 @@ O projeto tem `aiox-core` instalado como core agêntico. Os prompts de agente fi
 | `@analyst` | requisitos, PRD, brainstorming |
 | `@ux-design-expert` | experiência do usuário |
 
-Antes de agir, todo agente lê obrigatoriamente [`AGENTS.md`](AGENTS.md) (regras + §0 de estilo), [`PLAN.md`](PLAN.md) (roadmap) e [`SPP_RECOMENDACAO_MELHORIA.md`](SPP_RECOMENDACAO_MELHORIA.md) (stack detalhada).
+Antes de agir, todo agente le obrigatoriamente [`AGENTS.md`](AGENTS.md) (regras + par. 0 de estilo).
 
 ---
 
-## Documentação
+## Documentacao
 
 | Arquivo | Finalidade |
 |---|---|
-| [`PLAN.md`](PLAN.md) | Plano mestre, fases, critérios de aceite |
 | [`AGENTS.md`](AGENTS.md) | Diretrizes de engenharia (SOLID, Clean Code, OWASP Top 10, TDD, 12-Factor) |
-| [`SPP_RECOMENDACAO_MELHORIA.md`](SPP_RECOMENDACAO_MELHORIA.md) | Stack e trechos de código concretos |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitetura em camadas |
-| [`docs/API.md`](docs/API.md) | Catálogo de endpoints |
-| [`docs/status.md`](docs/status.md) | Status por fase |
-| [`docs/security.md`](docs/security.md) | Threat model + checklist OWASP Top 10 e LLM Top 10 |
-| [`docs/TRAINING_WINDOWS.md`](docs/TRAINING_WINDOWS.md) | Treinar LSTM no Windows com GPU |
-| [`docs/adr/`](docs/adr/) | Architecture Decision Records (0001..0011) |
-| [`backend/app/ml/SKILL.md`](backend/app/ml/SKILL.md) | System prompt econômico do Claude (Austrian school, value, macro) |
+| [`backend/app/ml/SKILL.md`](backend/app/ml/SKILL.md) | System prompt economico do Claude (Austrian school, value, macro) |
+| `docs/ARCHITECTURE.md` | Arquitetura em camadas (local, fora do git) |
+| `docs/API.md` | Catalogo de endpoints (local) |
+| `docs/status.md` | Status por fase (local) |
+| `docs/security.md` | Threat model + checklist OWASP Top 10 e LLM Top 10 (local) |
+| `docs/TRAINING_WINDOWS.md` | Treinar LSTM no Windows com GPU (local) |
+| `docs/adr/` | Architecture Decision Records 0001..0011 (local) |
+
+> **Nota:** a pasta `docs/` e mantida apenas localmente (fora do controle de versao). Para acessa-la, clone o repo e consulte os arquivos no disco.
 
 ---
 

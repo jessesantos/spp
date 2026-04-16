@@ -144,7 +144,7 @@ export default async function Dashboard({
               {data.ticker}
             </h1>
             <p className="mt-1 text-sm text-neutral-300">
-              LSTM 3 anos · sentimento Claude (SKILL Austríaco) · macro · FX · mercados de previsão
+              LSTM 5 anos · sentimento Claude (SKILL Austríaco) · macro · FX · mercados de previsão
             </p>
           </div>
           <div className="flex items-center gap-3">

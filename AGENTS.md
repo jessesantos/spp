@@ -15,7 +15,7 @@ Se encontrar `-` ou `-` em arquivos pre-existentes ao editar, substitua pelo equ
 
 ---
 
-> Este arquivo é **leitura obrigatória** para qualquer agente antes de escrever código no projeto SPP. Complementa `PLAN.md` (roadmap) e `SPP_RECOMENDACAO_MELHORIA.md` (stack técnica).
+> Este arquivo e **leitura obrigatoria** para qualquer agente antes de escrever codigo no projeto SPP.
 
 ---
 
@@ -59,7 +59,7 @@ frontend/
 
 - Nomes revelam intenção - `calculate_rsi(prices)`, não `calc(p)`.
 - Funções **curtas** (≤ 20 linhas idealmente) e **um nível de abstração** por função.
-- Zero números/strings mágicos - constantes em `config.py` ou enums.
+- Zero numeros/strings magicos - constantes em modulo de configuracao (`backend/app/infra/config.py`) ou enums.
 - **Sem comentários redundantes**. Comentário só para explicar **por quê**, nunca **o quê**.
 - `None`/`null` defensivo apenas nas bordas (entrada do usuário, APIs externas). Dentro do domínio, valores válidos são garantidos por tipos.
 - Early return em vez de `if/else` aninhado.
@@ -96,7 +96,7 @@ Antes de fechar qualquer PR, o agente **deve** validar cada item aplicável:
 | A01 | Broken Access Control | Autenticação JWT nas rotas sensíveis; middleware valida escopo; nunca confiar em IDs do cliente - sempre re-validar ownership no servidor. |
 | A02 | Cryptographic Failures | TLS em todas as pontas (Cloudflare Tunnel); segredos em `.env`/vault, **nunca** no repositório; hashes fortes (`argon2`/`bcrypt`) se houver senhas. |
 | A03 | Injection | **Zero** f-strings/concatenação em SQL - usar SQLAlchemy parametrizado. Validar entrada com Pydantic/Zod. Sanitizar entrada do usuário antes de passar ao Claude SDK (prompt injection). |
-| A04 | Insecure Design | Threat-model documentado em `docs/security.md`; rate-limit por IP + por user; quotas por ticker. |
+| A04 | Insecure Design | Threat-model documentado em `docs/security.md` (local, fora do git); rate-limit por IP + por user; quotas por ticker. |
 | A05 | Security Misconfiguration | CORS restrito (`allow_origins=[FRONTEND_URL]`); `DEBUG=False` em produção; headers de segurança (helmet/secure-headers); remover banners de versão. |
 | A06 | Vulnerable Components | `pip-audit`, `npm audit`, `trivy image` no CI. Dependabot/Renovate habilitado. Fixar versões em lockfile. |
 | A07 | Identification & Auth | JWT com expiração curta (15 min) + refresh token; rate-limit em `/login`; 2FA opcional. |
@@ -177,13 +177,13 @@ O projeto usa `aiox-core` como core agêntico. Comandos úteis dentro do Claude 
 
 ---
 
-## 6. Referências rápidas
+## 6. Referencias rapidas
 
-- `PLAN.md` - roadmap e fases
-- `SPP_RECOMENDACAO_MELHORIA.md` - stack + trechos de código concretos
-- `docs/adr/` - decisões arquiteturais
-- `docs/security.md` - threat model (a ser criado pelo `@architect`)
-- `docs/status.md` - status das fases (atualizado pelos agentes)
+> A pasta `docs/` e mantida apenas localmente (fora do controle de versao).
+
+- `docs/adr/` - decisoes arquiteturais (local)
+- `docs/security.md` - threat model (local)
+- `docs/status.md` - status das fases (local)
 
 ---
 

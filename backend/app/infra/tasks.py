@@ -31,7 +31,7 @@ log = logging.getLogger("spp.tasks")
 
 DEFAULT_EPOCHS: int = 50
 SYNC_LOOKBACK_DAYS: int = 30
-BACKFILL_LOOKBACK_DAYS: int = 1095  # 3 anos (ADR 0009)
+BACKFILL_LOOKBACK_DAYS: int = 1825  # 5 anos (ADR 0009)
 
 # Allowlist estreito para nomes de arquivo de lock (defesa em profundidade).
 # O ticker ja foi validado no `TickerSymbol` quando chegou pela API, mas

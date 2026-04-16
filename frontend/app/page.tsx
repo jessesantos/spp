@@ -88,7 +88,7 @@ export default async function Home(): Promise<JSX.Element> {
                 com IA, mercados de previsão e teoria econômica
               </h1>
               <p className="mt-5 max-w-xl text-base text-neutral-300 sm:text-lg">
-                LSTM treinada em 3 anos de histórico, cruzada com sentimento
+                LSTM treinada em 5 anos de histórico, cruzada com sentimento
                 Claude (Economia moderna + value investing via SKILL), sinais
                 de Kalshi e Polymarket, volatilidade condicional EWMA e
                 analisador de impacto cambial BRL/USD.
@@ -200,8 +200,8 @@ export default async function Home(): Promise<JSX.Element> {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FeatureCard
                 icon={BrainIcon}
-                title="LSTM 3 anos"
-                body="Rede 128-64-32 treinada com janela de 3 anos de OHLCV, cobrindo ciclo Copom completo e regime shifts de juros."
+                title="LSTM 5 anos"
+                body="Rede 128-64-32 treinada com janela de 5 anos de OHLCV, cobrindo múltiplos ciclos Copom e regime shifts de juros."
               />
               <FeatureCard
                 icon={Clock01Icon}

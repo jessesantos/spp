@@ -35,9 +35,12 @@ class Settings(BaseSettings):
     rate_limit_default: str = Field(default="60/minute")
     rate_limit_predict: str = Field(default="10/minute")
 
-    # Janela de treinamento (v3.1 - ADR 0009): 3 anos por padrao.
-    training_period_default: str = Field(default="3y")
-    backfill_lookback_days: int = Field(default=1095)
+    # Janela de treinamento (v3.1 - ADR 0009): 5 anos por padrao.
+    # Cobre ciclo Copom completo + multiplos regime shifts. BrAPI/yfinance
+    # nao aceitam '3y' como range nativo, entao 5y e o valor pratico que
+    # cumpre o objetivo de janela longa.
+    training_period_default: str = Field(default="5y")
+    backfill_lookback_days: int = Field(default=1825)
 
     # Prediction markets (Kalshi + Polymarket).
     kalshi_base_url: str = Field(

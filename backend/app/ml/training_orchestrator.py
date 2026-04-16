@@ -94,7 +94,7 @@ class TrainingOrchestrator:
         self,
         ticker: str,
         *,
-        period: str = "3y",
+        period: str = "5y",
         epochs: int = 50,
         sequence_length: int = 5,
         batch_size: int = 16,
